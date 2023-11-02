@@ -90,7 +90,7 @@ contract CloneFactory {
     }
 }
 
-contract factoryV2 is Ownable, Config, Initialize, CloneFactory {
+contract FactoryV2 is Ownable, Config, Initialize, CloneFactory {
     event Create(address indexed from, address indexed target, address indexed nft, address link, bool isFullLink);
     event LinkActive(address _link, address _user, uint256 _methodId);
 
