@@ -2,13 +2,8 @@
 pragma solidity ^0.8.0;
 
 interface IERC721{
-    //function balanceOf(address _owner) external view returns (uint256);
     function ownerOf(uint256 _tokenId) external view returns (address);
-   // function safeTransferFrom(address _from, address _to, uint256 _tokenId, bytes calldata data) external payable;
-   // function safeTransferFrom(address _from, address _to, uint256 _tokenId) external payable;
     function transferFrom(address _from, address _to, uint256 _tokenId) external payable;
-   // function approve(address _approved, uint256 _tokenId) external payable;
-   // function setApprovalForAll(address _operator, bool _approved) external;
     function getApproved(uint256 _tokenId) external view returns (address);
     function isApprovedForAll(address _owner, address _operator) external view returns (bool);
 }
@@ -50,7 +45,6 @@ contract Initialize {
         initialized = true;
     }
 }
-
 
 contract Config is Ownable{
     uint256 public minLockDay;
@@ -127,7 +121,7 @@ contract factoryV2 is Ownable, Config, Initialize, CloneFactory {
         require(target != address(0),"target cannot be 0");
         require(target != msg.sender,"target cannot be self");
         require(allowedNFT[nft], "nft invalid");
-        require(lockDays > minLockDay && lockDays <= maxLockDay, "lockDays invalid");
+        //require(lockDays >= minLockDay && lockDays <= maxLockDay, "lockDays invalid");
         require(tokenId.length == 1 || tokenId.length == 2, "tokenId invalid");
         bool isFullLink = tokenId.length == 2 ? true:false;
         IERC721 NFT = IERC721(nft);

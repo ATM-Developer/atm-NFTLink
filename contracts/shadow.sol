@@ -7,15 +7,14 @@ import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 
 
 contract ShadowStorage {
-    struct tokenDetail{address nftAddress; uint256 tokenId;}
-    mapping (address=> mapping(uint256=>uint256)) private shadows;
-    mapping (uint256=>tokenDetail) private shadowDetails;
-    mapping (uint256=>bool) private shadowStatus;
-
-    function getTokenDetail(uint256 shadowId) public view returns(address nft, uint256 tokenId) {
-        tokenDetail memory sd = shadowDetails[shadowId];
-        return (sd.nftAddress, sd.tokenId);
+    struct tokenDetail{
+        address nftAddress; //nft address
+        uint256 tokenId;    //tokenId
+        bool status;        //status 
     }
+
+    mapping (address=> mapping(uint256=>uint256)) private shadows;  //NFT => Id => shadowId
+    mapping (uint256=>tokenDetail) public shadowDetails;            //shadowId => tokenDetails
 
     function getShadowId(address nft, uint256 tokenId) public view returns(uint256) {
         return shadows[nft][tokenId];
@@ -26,26 +25,21 @@ contract ShadowStorage {
     }
 
     function isActiveShadow(uint256 shadowId) public view returns(bool) {
-        return shadowStatus[shadowId];
+        return shadowDetails[shadowId].status;
     }
 
-    function _addShadow(
+    function _newShadow(
         address nft, 
         uint256 tokenId, 
         uint256 shadowId
     ) internal  
     {
         shadows[nft][tokenId] = shadowId;
-        shadowDetails[shadowId] = tokenDetail(nft, tokenId);
-        shadowStatus[shadowId] = true;
+        shadowDetails[shadowId] = tokenDetail(nft, tokenId, true);
     }  
 
-    function _removeShadow(uint256 shadowId) internal {
-        shadowStatus[shadowId] = false;
-    }
-
-    function _restartShadow(uint256 shadowId) internal {
-        shadowStatus[shadowId] = true;
+    function _updataStatus(uint256 tokenId) internal{
+        shadowDetails[tokenId].status = !shadowDetails[tokenId].status;
     }
 }
 
@@ -63,23 +57,24 @@ contract ShadowToken is Ownable, ERC721, ShadowStorage {
         uint256 tokenId
     ) public onlyOwner returns (uint256)
     {
-        require(to != address(0), "HouseToken: to is the zero address");
+        require(to != address(0), "AST: zero address");
         if (isExistShadow(nft, tokenId)){
             uint256 sid = getShadowId(nft, tokenId);
-            require(!isActiveShadow(sid), "shadowToken active");
-            _mint(to, sid);
-            _restartShadow(sid);
+            require(!isActiveShadow(sid), "AST: shadowToken alive");
+            _transfer(address(0), to, sid);
+            _updataStatus(sid);
             return sid;
         }else {
             _tokenIdTracker.increment();
             uint256 newTokenId = _tokenIdTracker.current();
             _mint(to, newTokenId);
-            _addShadow(nft, tokenId, newTokenId);
+            _newShadow(nft, tokenId, newTokenId);
             return newTokenId;
         }
     }
 
     function burn(uint256 tokenId) public onlyOwner {
+        _updataStatus(tokenId);
         _burn(tokenId);
     }
 
@@ -117,7 +112,7 @@ contract ShadowToken is Ownable, ERC721, ShadowStorage {
 
     function tokenURI(uint256 tokenId) public view override returns (string memory){
         _requireMinted(tokenId);
-        (address nft, uint256 id) = getTokenDetail(tokenId);
-        return  IERC721Metadata(nft).tokenURI(id);
+        tokenDetail memory s = shadowDetails[tokenId];
+        return IERC721Metadata(s.nftAddress).tokenURI(s.tokenId);
     }
 }

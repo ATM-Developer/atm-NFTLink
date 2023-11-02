@@ -106,6 +106,7 @@ interface IERC721{
 interface Ifactory{
     function getToken(address nft, address userB, uint256 id) external;
     function linkActive(address user, uint256 methodId) external;
+    function shadowNeed(address nft) external returns(bool);
     function mintShadow( address to, address nft, uint256 tokenId) external;
     function burnShadow(address nft, uint256 tokenId) external;
 }
@@ -155,6 +156,11 @@ contract LinkV2 is Initialize, Enum{
         _;
     }
 
+    modifier onlyUserA(){
+        require(msg.sender == userA, "Link: noly userA");
+        _;
+    }
+
     modifier onlyUserB(){
         require(msg.sender == userB, "Link: noly userB");
         _;
@@ -175,7 +181,7 @@ contract LinkV2 is Initialize, Enum{
         Ifactory(factory).linkActive(msg.sender, uint256(_methodId));
     }
 
-    function initialize(address _factory, address _nft, address _userA, address _userB, uint256 _idA, uint256 _idB, uint256 _lockDays) external{
+    function initialize(address _factory, address _nft, address _userA, address _userB, uint256 _idA, uint256 _idB, uint256 _lockDays) noInit external{
         (factory, NFT, userA, userB, idA, idB, lockDays ) = (_factory, _nft, _userA, _userB, _idA, _idB, _lockDays);
         if(_idB != 0){
             isFullLink = true;
@@ -201,7 +207,12 @@ contract LinkV2 is Initialize, Enum{
         if (Status.CLOSED == status)  return "closed";
     }
 
-    function cancel() external onlyINITED {
+    function cancel() external onlyUserA onlyINITED {
+        //burn shadowNFT
+        if(Ifactory(factory).shadowNeed(NFT)){
+            Ifactory(factory).burnShadow(NFT, idA);
+        }
+
         IERC721(NFT).transferFrom(address(this), userA, idA);
         _close();
         _linkActive(MethodId.cancel);
@@ -211,25 +222,34 @@ contract LinkV2 is Initialize, Enum{
         require(_idB != 0, "idB can`t be 0");
         idB = _idB;
         Ifactory(factory).getToken(NFT, userB, idB);
-        Ifactory(factory).mintShadow(userB, NFT, idB);
+        //create shadowNFT
+        if(Ifactory(factory).shadowNeed(NFT)){
+            Ifactory(factory).mintShadow(userB, NFT, idB);
+        }
         startTime = block.timestamp;
         expiredTime = startTime.add(lockDays.mul(1 days));
         _agree();
         _linkActive(MethodId.agree);
     }
 
-    function reject() external onlyUserB onlyINITED{
+    function reject() external onlyUserB onlyINITED {
+        //burn shadowNFT
+        if(Ifactory(factory).shadowNeed(NFT)){
+            Ifactory(factory).burnShadow(NFT, idA);
+        }
+
         IERC721(NFT).transferFrom(address(this), userA, idA);
         _close();
         _linkActive(MethodId.reject);
     }
 
-
     function close() external onlyLinkUser onlyAGREED{
         require(block.timestamp >= expiredTime, "not expired");
         //burn shadowNFT
-        Ifactory(factory).burnShadow(NFT, idA);
-        Ifactory(factory).burnShadow(NFT, idB);
+        if(Ifactory(factory).shadowNeed(NFT)){
+            Ifactory(factory).burnShadow(NFT, idA);
+            Ifactory(factory).burnShadow(NFT, idB);
+        }
 
         IERC721(NFT).transferFrom(address(this), userA, idA);
         if (isFullLink){ 

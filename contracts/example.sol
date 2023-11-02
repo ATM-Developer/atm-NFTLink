@@ -27,7 +27,7 @@ contract AiCloneX is ERC721, Ownable {
     bool public dynamicCost = true;
     bool public dynamicMintAmount = true;
 
-    constructor() ERC721("Ai CloneX-III", "AiCloneX-3") {
+    constructor() ERC721("Ai CloneX", "Ai-2") {
         setHiddenMetadataUri("ipfs://QmYKZ6ZopnqCE9AKiGoKoAqsPwQApfENV5tpqQQxmZi6Qf/hidden.json");
     }
 
