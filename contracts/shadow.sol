@@ -1,10 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import "@openzeppelin/contracts/utils/Counters.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
-import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
-
+import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 
 contract ShadowStorage {
     struct tokenDetail{
@@ -28,91 +25,97 @@ contract ShadowStorage {
         return shadowDetails[shadowId].status;
     }
 
-    function _newShadow(
-        address nft, 
-        uint256 tokenId, 
-        uint256 shadowId
-    ) internal  
-    {
+    function _newShadow(address nft, uint256 tokenId, uint256 shadowId) internal {
         shadows[nft][tokenId] = shadowId;
         shadowDetails[shadowId] = tokenDetail(nft, tokenId, true);
     }  
 
-    function _updataStatus(uint256 tokenId) internal{
-        shadowDetails[tokenId].status = !shadowDetails[tokenId].status;
+    function _updataShadow(uint256 tokenId) internal{
+        bool status = shadowDetails[tokenId].status;
+        shadowDetails[tokenId].status = !status;
     }
 }
 
+interface IERC721Metadata{
+    function tokenURI(uint256 tokenId) external view returns (string memory);
+}
 
-contract ShadowToken is Ownable, ERC721, ShadowStorage {
-    using Strings for uint256;
-    using Counters for Counters.Counter;
-    Counters.Counter private _tokenIdTracker;
 
-    constructor() ERC721("ATM ShadowToken", "AST") {}
+contract Shadow is ShadowStorage, IERC721{
+    //ERC721 metadata
+    string public name;
+    string public symbol;
+    uint256 public totalsupply;
 
-    function mint(
-        address to, 
-        address nft, 
-        uint256 tokenId
-    ) public onlyOwner returns (uint256)
-    {
-        require(to != address(0), "AST: zero address");
-        if (isExistShadow(nft, tokenId)){
-            uint256 sid = getShadowId(nft, tokenId);
-            require(!isActiveShadow(sid), "AST: shadowToken alive");
-            _transfer(address(0), to, sid);
-            _updataStatus(sid);
-            return sid;
-        }else {
-            _tokenIdTracker.increment();
-            uint256 newTokenId = _tokenIdTracker.current();
-            _mint(to, newTokenId);
-            _newShadow(nft, tokenId, newTokenId);
-            return newTokenId;
-        }
+    mapping(uint256 => address) private _owners;
+    mapping(address => uint256) private _balances;
+
+    //event Transfer(address from, address to, uint256 tokenId);
+
+    function setShadow(string memory _name, string memory _symbol) internal {
+        name = _name;
+        symbol = _symbol;
     }
 
-    function burn(uint256 tokenId) public onlyOwner {
-        _updataStatus(tokenId);
-        _burn(tokenId);
+    function ownerOf(uint256 tokenId) public view override returns(address owner){
+        return _owners[tokenId];
     }
 
-    function _untransfer(
-        address from, 
-        address to, 
-        uint256 tokenId, 
-        bytes memory _date
-    ) internal virtual {}
-
-    function transferFrom(
-        address from,
-        address to,
-        uint256 tokenId
-    ) public override {
-        _untransfer(from, to, tokenId, '');
+    function balanceOf(address owner) public view override returns(uint256 balance){
+        return _balances[owner];
     }
 
-    function safeTransferFrom(
-        address from,
-        address to,
-        uint256 tokenId
-    ) public override {
-        _untransfer(from, to, tokenId, '');
-    }
-
-    function safeTransferFrom(
-        address from,
-        address to,
-        uint256 tokenId,
-        bytes memory _data
-    ) public override {
-        _untransfer(from, to, tokenId,  _data); 
-    }
-
-    function tokenURI(uint256 tokenId) public view override returns (string memory){
-        _requireMinted(tokenId);
+    function tokenURI(uint256 tokenId) public view returns (string memory){
         tokenDetail memory s = shadowDetails[tokenId];
         return IERC721Metadata(s.nftAddress).tokenURI(s.tokenId);
     }
+    
+    function _mint(address to) private returns(uint256 tokenId) {
+        totalsupply++;
+        tokenId = totalsupply;
+    
+        _balances[to] += 1;
+        _owners[tokenId] = to;
+
+        emit Transfer(address(0), to, tokenId);
+    }
+
+    function _revive(address to, uint256 tokenId) private {
+        require(totalsupply >= tokenId,"Shadow: unexist tokenId");
+        _balances[to] += 1;
+        _owners[tokenId] = to;
+
+        emit Transfer(address(0), to, tokenId);
+    }
+   
+    function mint(address to, address nft, uint256 tokenId) internal {
+        require(to != address(0), "Shadow: zero address");
+        uint256 sid;
+        if (isExistShadow(nft, tokenId)){  
+            sid = getShadowId(nft, tokenId);
+            _revive(to, sid);
+            _updataShadow(sid);
+        }else {
+            sid = _mint(to);   
+            _newShadow(nft, tokenId, sid);
+        }
+    }
+
+    function burn(uint256 tokenId) internal {
+        address owner = ownerOf(tokenId);
+        _balances[owner] -= 1;
+        delete _owners[tokenId];
+
+        emit Transfer(owner, address(0), tokenId);
+    }
+
+    //---virtuel function for ERC721 
+    function approve(address to, uint256 tokenId) external override{}
+    function transferFrom(address from, address to, uint256 tokenId) external override{}
+    function safeTransferFrom(address from, address to, uint256 tokenId) external override{}
+    function safeTransferFrom(address from, address to, uint256 tokenId, bytes calldata data) external override{}
+    function setApprovalForAll(address operator, bool approved) external override{}
+    function getApproved(uint256 tokenId) external view override returns (address){}
+    function isApprovedForAll(address owner, address operator) external view override returns (bool) {}
+    function supportsInterface(bytes4 interfaceId) external view override returns (bool){}
 }

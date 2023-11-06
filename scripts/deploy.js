@@ -10,14 +10,11 @@ const hre = require("hardhat");
 
 async function main() {
   console.log("\n###############  load contract .... ###############");
-  const ShadowToken = await hre.ethers.getContractFactory("ShadowToken");
   const Link = await hre.ethers.getContractFactory("LinkV2");
   const Factory = await hre.ethers.getContractFactory("FactoryV2");
   const FactoryProxy = await hre.ethers.getContractFactory("FactoryProxyV2");
 
   console.log("\n===============  deploy  ShadowToken ============");
-  const st = await ShadowToken.deploy();
-
   console.log("\n===============  deploy  Link ==============");
   const link = await Link.deploy();
 
@@ -30,7 +27,6 @@ async function main() {
   console.log(`
   ----------------------------------------------------
   deployed contracts address
-  shadow: ${st.address}
   link: ${link.address}
   factory: ${factory.address}
   factoryProxy: ${factoryProxy.address}
@@ -40,17 +36,13 @@ async function main() {
 
 
   console.log("\n############### contract setting ####################");
-  console.log("\n=============== shadowToken set owner ===============");
-  await st.transferOwnership(factoryProxy.address);
 
   console.log("\n=============== factory initialize  ===============");
-  await Factory.attach(factoryProxy.address).initialize(1, 1825, link.address, st.address);
+  await Factory.attach(factoryProxy.address).initialize(link.address);
 
 
 /*
   console.log("\n############## verify contracts  ###############");
-  console.log("\n========== verify shadowToken  ===================");
-  await hre.run("verify:verify", {address: st.address ,constructorArguments: []});
 
   console.log("\n========== verify link  ===================");
   await hre.run("verify:verify", {address: link.address ,constructorArguments: []});

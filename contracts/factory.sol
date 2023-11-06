@@ -1,12 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-interface IERC721{
-    function ownerOf(uint256 _tokenId) external view returns (address);
-    function transferFrom(address _from, address _to, uint256 _tokenId) external payable;
-    function getApproved(uint256 _tokenId) external view returns (address);
-    function isApprovedForAll(address _owner, address _operator) external view returns (bool);
-}
+import "./shadow.sol";
+
 
 interface Ilink {
     function initialize(address _factory, address _nft, address _userA, address _userB, uint256 _idA, uint256 _idB, uint256 _lockDays) external;
@@ -15,13 +11,6 @@ interface Ilink {
     function NFT() external returns(address);
     function agree() external;
 }
-
-interface  IshadowNFT {
-    function mint(address to, address nft, uint256 tokenId) external returns (uint256 shadowId);
-    function burn(uint256 shadowId) external;
-    function getShadowId(address nft, uint256 tokenId) external view returns(uint256);
-}
-
 
 contract Ownable{
     address public owner;
@@ -50,7 +39,6 @@ contract Config is Ownable{
     uint256 public minLockDay;
     uint256 public maxLockDay;
     address public nftLink;
-    address public shadowNFT;
     mapping(address => bool) public allowedNFT;
     mapping(address => bool) public shadowNeed;
     mapping(address => bool) public isLink;
@@ -90,7 +78,7 @@ contract CloneFactory {
     }
 }
 
-contract FactoryV2 is Ownable, Config, Initialize, CloneFactory {
+contract FactoryV2 is Ownable, Config, Initialize, CloneFactory, Shadow {
     event Create(address indexed from, address indexed target, address indexed nft, address link, bool isFullLink);
     event LinkActive(address _link, address _user, uint256 _methodId);
 
@@ -99,8 +87,10 @@ contract FactoryV2 is Ownable, Config, Initialize, CloneFactory {
         _;
     } 
 
-    function initialize(uint256 min, uint256 max, address link, address shadow) noInit public {
-        (minLockDay, maxLockDay, nftLink, shadowNFT) = (min, max, link, shadow);
+    function initialize(address link) noInit public {
+        (minLockDay, maxLockDay) = (1, 1285);
+        setShadow("ATM-SHADOW", "ATS");
+        nftLink = link;
         owner = msg.sender;
     }
 
@@ -109,12 +99,12 @@ contract FactoryV2 is Ownable, Config, Initialize, CloneFactory {
     }
 
     function mintShadow(address to, address nft, uint256 tokenId) onlyLink external {
-        IshadowNFT(shadowNFT).mint(to, nft, tokenId);
+        mint(to, nft, tokenId);
     }
 
     function burnShadow(address nft, uint256 tokenId) onlyLink external {
-        uint256 sid = IshadowNFT(shadowNFT).getShadowId(nft, tokenId);
-        IshadowNFT(shadowNFT).burn(sid);
+        uint256 sid = getShadowId(nft, tokenId);
+        burn(sid);
     }
 
     function createLink(address nft, address target, uint256[] calldata tokenId, uint256 lockDays) external{
@@ -123,7 +113,7 @@ contract FactoryV2 is Ownable, Config, Initialize, CloneFactory {
         require(allowedNFT[nft], "nft invalid");
         //require(lockDays >= minLockDay && lockDays <= maxLockDay, "lockDays invalid");
         require(tokenId.length == 1 || tokenId.length == 2, "tokenId invalid");
-        bool isFullLink = tokenId.length == 2 ? true:false;
+        bool isFullLink = tokenId.length == 2;
         IERC721 NFT = IERC721(nft);
         if (isFullLink){
             //fullLink
@@ -152,8 +142,10 @@ contract FactoryV2 is Ownable, Config, Initialize, CloneFactory {
 
         //create shadowNFT
         if (shadowNeed[nft]){
-            IshadowNFT(shadowNFT).mint(msg.sender, nft, tokenId[0]);
-            if (isFullLink) IshadowNFT(shadowNFT).mint(msg.sender, nft, tokenId[1]);
+            mint(msg.sender, nft, tokenId[0]);
+            if (isFullLink) {
+                mint(msg.sender, nft, tokenId[1]);
+            }
         }
 
         //set link info

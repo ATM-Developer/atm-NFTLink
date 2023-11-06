@@ -107,10 +107,9 @@ interface Ifactory{
     function getToken(address nft, address userB, uint256 id) external;
     function linkActive(address user, uint256 methodId) external;
     function shadowNeed(address nft) external returns(bool);
-    function mintShadow( address to, address nft, uint256 tokenId) external;
+    function mintShadow(address to, address nft, uint256 tokenId) external;
     function burnShadow(address nft, uint256 tokenId) external;
 }
-
 
 contract Initialize {
     bool internal initialized;
@@ -137,8 +136,8 @@ contract Enum {
 
 contract LinkV2 is Initialize, Enum{
     using SafeMath for uint256;
-    //string  public symbol;
-    address public factory;
+
+    Ifactory public Factory;
     address public NFT;
     address public userA;
     address public userB;
@@ -178,11 +177,11 @@ contract LinkV2 is Initialize, Enum{
 
 
     function _linkActive(MethodId _methodId) internal{
-        Ifactory(factory).linkActive(msg.sender, uint256(_methodId));
+        Factory.linkActive(msg.sender, uint256(_methodId));
     }
 
     function initialize(address _factory, address _nft, address _userA, address _userB, uint256 _idA, uint256 _idB, uint256 _lockDays) noInit external{
-        (factory, NFT, userA, userB, idA, idB, lockDays ) = (_factory, _nft, _userA, _userB, _idA, _idB, _lockDays);
+        (Factory, NFT, userA, userB, idA, idB, lockDays ) = (Ifactory(_factory), _nft, _userA, _userB, _idA, _idB, _lockDays);
         if(_idB != 0){
             isFullLink = true;
             startTime = block.timestamp;
@@ -209,8 +208,8 @@ contract LinkV2 is Initialize, Enum{
 
     function cancel() external onlyUserA onlyINITED {
         //burn shadowNFT
-        if(Ifactory(factory).shadowNeed(NFT)){
-            Ifactory(factory).burnShadow(NFT, idA);
+        if(Factory.shadowNeed(NFT)){
+            Factory.burnShadow(NFT, idA);
         }
 
         IERC721(NFT).transferFrom(address(this), userA, idA);
@@ -221,10 +220,10 @@ contract LinkV2 is Initialize, Enum{
     function agree(uint256 _idB) external onlyUserB onlyINITED{
         require(_idB != 0, "idB can`t be 0");
         idB = _idB;
-        Ifactory(factory).getToken(NFT, userB, idB);
+        Factory.getToken(NFT, userB, idB);
         //create shadowNFT
-        if(Ifactory(factory).shadowNeed(NFT)){
-            Ifactory(factory).mintShadow(userB, NFT, idB);
+        if(Factory.shadowNeed(NFT)){
+            Factory.mintShadow(userB, NFT, idB);
         }
         startTime = block.timestamp;
         expiredTime = startTime.add(lockDays.mul(1 days));
@@ -234,8 +233,8 @@ contract LinkV2 is Initialize, Enum{
 
     function reject() external onlyUserB onlyINITED {
         //burn shadowNFT
-        if(Ifactory(factory).shadowNeed(NFT)){
-            Ifactory(factory).burnShadow(NFT, idA);
+        if(Factory.shadowNeed(NFT)){
+            Factory.burnShadow(NFT, idA);
         }
 
         IERC721(NFT).transferFrom(address(this), userA, idA);
@@ -246,9 +245,9 @@ contract LinkV2 is Initialize, Enum{
     function close() external onlyLinkUser onlyAGREED{
         require(block.timestamp >= expiredTime, "not expired");
         //burn shadowNFT
-        if(Ifactory(factory).shadowNeed(NFT)){
-            Ifactory(factory).burnShadow(NFT, idA);
-            Ifactory(factory).burnShadow(NFT, idB);
+        if(Factory.shadowNeed(NFT)){
+            Factory.burnShadow(NFT, idA);
+            Factory.burnShadow(NFT, idB);
         }
 
         IERC721(NFT).transferFrom(address(this), userA, idA);
