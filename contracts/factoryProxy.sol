@@ -22,7 +22,7 @@ contract Proxy {
     event AdminChanged(address preAdmin, address newAdmin);
 
     modifier onlyAmdin(){
-        require(msg.sender == admin(), "LucaPorxy: Caller not admin");
+        require(msg.sender == admin(), "Porxy: Caller not admin");
         _;
     }
 
