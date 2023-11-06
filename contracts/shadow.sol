@@ -30,9 +30,8 @@ contract ShadowStorage {
         shadowDetails[shadowId] = tokenDetail(nft, tokenId, true);
     }  
 
-    function _updataShadow(uint256 tokenId) internal{
-        bool status = shadowDetails[tokenId].status;
-        shadowDetails[tokenId].status = !status;
+    function _updataShadow(uint256 tokenId, bool status) internal{
+        shadowDetails[tokenId].status = status;
     }
 }
 
@@ -92,7 +91,7 @@ contract Shadow is ShadowStorage, IERC721{
         if (isExistShadow(nft, tokenId)){  
             sid = getShadowId(nft, tokenId);
             _revive(to, sid);
-            _updataShadow(sid);
+            _updataShadow(sid, true);
         }else {
             sid = _mint(to);   
             _newShadow(nft, tokenId, sid);
@@ -103,7 +102,7 @@ contract Shadow is ShadowStorage, IERC721{
         address owner = ownerOf(tokenId);
         _balances[owner] -= 1;
         delete _owners[tokenId];
-
+        _updataShadow(tokenId, false);
         emit Transfer(owner, address(0), tokenId);
     }
 
