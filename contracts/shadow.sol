@@ -50,8 +50,6 @@ contract Shadow is ShadowStorage, IERC721{
     mapping(uint256 => address) private _owners;
     mapping(address => uint256) private _balances;
 
-    //event Transfer(address from, address to, uint256 tokenId);
-
     function setShadow(string memory _name, string memory _symbol) internal {
         name = _name;
         symbol = _symbol;

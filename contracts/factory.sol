@@ -111,7 +111,7 @@ contract FactoryV2 is Ownable, Config, Initialize, CloneFactory, Shadow {
         require(target != address(0),"target cannot be 0");
         require(target != msg.sender,"target cannot be self");
         require(allowedNFT[nft], "nft invalid");
-        //require(lockDays >= minLockDay && lockDays <= maxLockDay, "lockDays invalid");
+        require(lockDays >= minLockDay && lockDays <= maxLockDay, "lockDays invalid");
         require(tokenId.length == 1 || tokenId.length == 2, "tokenId invalid");
         bool isFullLink = tokenId.length == 2;
         IERC721 NFT = IERC721(nft);
